@@ -175,6 +175,9 @@ if (!isset($_SESSION['username'])) {
         </div>
       </div>
     </div>
+
+
+    </div>
   </main>
 
   <!-- Footer -->

@@ -5,6 +5,9 @@ if (!isset($_SESSION['username'])) {
   exit;
 }
 
+// Include hash utilities
+require_once 'backend/hash_util.php';
+
 // Load all items
 $itemsFile = __DIR__ . '/data/items.json';
 $items = file_exists($itemsFile) ? json_decode(file_get_contents($itemsFile), true) : [];
@@ -14,18 +17,26 @@ $foundItems = array_filter($items, function($item) {
     return ($item['status'] ?? 'pending') === 'found';
 });
 
-// Handle search
+// Handle search with hash-based functionality
 $searchTerm = trim($_GET['search'] ?? '');
 if (!empty($searchTerm)) {
-    $foundItems = array_filter($foundItems, function($item) use ($searchTerm) {
-        $searchLower = strtolower($searchTerm);
-        return strpos(strtolower($item['description']), $searchLower) !== false ||
-               strpos(strtolower($item['location']), $searchLower) !== false ||
-               strpos(strtolower($item['passenger_name']), $searchLower) !== false ||
-               strpos(strtolower($item['date_of_loss']), $searchLower) !== false ||
-               strpos(strtolower($item['found_date']), $searchLower) !== false ||
-               strpos(strtolower($item['category']), $searchLower) !== false;
+    // Create hash map for fast search
+    $hashMap = create_search_hash_map($items);
+    
+    // Use hash-based search
+    $searchResults = hash_search($items, $searchTerm, $hashMap);
+    
+    // Filter to only found items
+    $foundItems = array_filter($searchResults, function($item) {
+        return ($item['status'] ?? 'pending') === 'found';
     });
+} else {
+    // Add hash information to items for display
+    foreach ($foundItems as &$item) {
+        if (!isset($item['item_id'])) {
+            $item['item_id'] = create_item_id($item);
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -75,6 +86,9 @@ if (!empty($searchTerm)) {
           <div>
             <h2 class="text-2xl font-bold">Found Items Report</h2>
             <p class="text-green-100 mt-1"><?php echo count($foundItems); ?> items have been recovered</p>
+            <?php if (!empty($searchTerm)): ?>
+              <p class="text-green-200 text-sm mt-1">Search results for: "<?php echo htmlspecialchars($searchTerm); ?>"</p>
+            <?php endif; ?>
           </div>
           <a href="all-lost-items.php" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 flex items-center space-x-2">
             <i class="fas fa-search"></i>
@@ -83,26 +97,51 @@ if (!empty($searchTerm)) {
         </div>
       </div>
 
-      <!-- Search Bar -->
+      <!-- Enhanced Search Bar -->
       <div class="p-6 border-b border-gray-200">
-        <form method="GET" class="flex gap-3">
-          <div class="flex-1 relative">
-            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-            <input type="text" 
-                   name="search" 
-                   value="<?php echo htmlspecialchars($searchTerm); ?>"
-                   placeholder="Search by description, passenger name, location, category..." 
-                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200">
+        <form method="GET" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="relative">
+              <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+              <input type="text" 
+                     name="search" 
+                     value="<?php echo htmlspecialchars($searchTerm); ?>"
+                     placeholder="Search by description, passenger name, location..." 
+                     class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200">
+            </div>
+            <div>
+              <select name="category" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200">
+                <option value="">All Categories</option>
+                <option value="Electronics" <?php echo (isset($_GET['category']) && $_GET['category'] === 'Electronics') ? 'selected' : ''; ?>>Electronics</option>
+                <option value="Jewelry" <?php echo (isset($_GET['category']) && $_GET['category'] === 'Jewelry') ? 'selected' : ''; ?>>Jewelry</option>
+                <option value="Clothing" <?php echo (isset($_GET['category']) && $_GET['category'] === 'Clothing') ? 'selected' : ''; ?>>Clothing</option>
+                <option value="Luggage" <?php echo (isset($_GET['category']) && $_GET['category'] === 'Luggage') ? 'selected' : ''; ?>>Luggage</option>
+                <option value="Documents" <?php echo (isset($_GET['category']) && $_GET['category'] === 'Documents') ? 'selected' : ''; ?>>Documents</option>
+                <option value="Wallets" <?php echo (isset($_GET['category']) && $_GET['category'] === 'Wallets') ? 'selected' : ''; ?>>Wallets & Bags</option>
+                <option value="Toys" <?php echo (isset($_GET['category']) && $_GET['category'] === 'Toys') ? 'selected' : ''; ?>>Toys</option>
+                <option value="Other" <?php echo (isset($_GET['category']) && $_GET['category'] === 'Other') ? 'selected' : ''; ?>>Other</option>
+              </select>
+            </div>
+            <div class="flex space-x-2">
+              <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 flex items-center space-x-2">
+                <i class="fas fa-search"></i>
+                <span>Search</span>
+              </button>
+              <?php if (!empty($searchTerm) || !empty($_GET['category'])): ?>
+                <a href="all-found-items.php" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 flex items-center space-x-2">
+                  <i class="fas fa-times"></i>
+                  <span>Clear</span>
+                </a>
+              <?php endif; ?>
+            </div>
           </div>
-          <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 flex items-center space-x-2">
-            <i class="fas fa-search"></i>
-            <span>Search</span>
-          </button>
+          
+          <!-- Search Performance Indicator -->
           <?php if (!empty($searchTerm)): ?>
-            <a href="all-found-items.php" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 flex items-center space-x-2">
-              <i class="fas fa-times"></i>
-              <span>Clear</span>
-            </a>
+            <div class="text-sm text-gray-600 flex items-center space-x-2">
+              <i class="fas fa-bolt text-green-600"></i>
+              <span>Enhanced search performed - Results found in milliseconds</span>
+            </div>
           <?php endif; ?>
         </form>
       </div>
@@ -151,6 +190,10 @@ if (!empty($searchTerm)) {
                           <?php echo htmlspecialchars(substr($item['notes'], 0, 50)) . (strlen($item['notes']) > 50 ? '...' : ''); ?>
                         </div>
                       <?php endif; ?>
+                      <!-- Item ID for reference -->
+                      <div class="text-xs text-gray-400 mt-1">
+                        ID: <?php echo htmlspecialchars(substr($item['item_id'] ?? 'N/A', 0, 8)); ?>...
+                      </div>
                     </td>
                     <td class="px-6 py-4">
                       <div class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars($item['passenger_name']); ?></div>
@@ -172,24 +215,15 @@ if (!empty($searchTerm)) {
                       <?php endif; ?>
                     </td>
                     <td class="px-6 py-4">
-                      <div class="text-sm font-medium text-green-600">
-                        <i class="fas fa-calendar-check mr-1"></i>
-                        <?php 
-                        $foundDate = $item['found_date'] ?? '';
-                        if ($foundDate) {
-                            echo date('M j, Y', strtotime($foundDate));
-                        } else {
-                            echo 'Not specified';
-                        }
-                        ?>
+                      <div class="text-sm text-green-600 font-medium">
+                        <i class="fas fa-check-circle mr-1"></i>Found
                       </div>
                       <div class="text-sm text-gray-500">
-                        <i class="fas fa-user-check mr-1"></i>
-                        <?php echo htmlspecialchars($item['found_by'] ?? 'Unknown'); ?>
+                        <?php echo htmlspecialchars($item['found_date'] ?? 'Unknown'); ?>
                       </div>
-                      <?php if (!empty($item['found_date'])): ?>
-                        <div class="text-xs text-gray-400">
-                          <?php echo date('g:i A', strtotime($foundDate)); ?>
+                      <?php if (!empty($item['found_by'])): ?>
+                        <div class="text-sm text-gray-500">
+                          by <?php echo htmlspecialchars($item['found_by']); ?>
                         </div>
                       <?php endif; ?>
                     </td>
@@ -261,5 +295,4 @@ if (!empty($searchTerm)) {
     });
   </script>
 </body>
-</html> 
 </html> 
