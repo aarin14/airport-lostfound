@@ -1,0 +1,48 @@
+[
+    {
+        "type": "lost",
+        "contact_name": "John Smith",
+        "contact_phone": "+1234567890",
+        "contact_email": "john.smith@email.com",
+        "date_of_loss": "2024-07-12",
+        "description": "Black leather wallet with credit cards",
+        "location": "Terminal 1, Gate A5",
+        "image": null,
+        "created_at": "2024-07-12T23:15:00Z",
+        "status": "found",
+        "username": "desk_operator",
+        "found_date": "2025-07-13T10:15:56+02:00",
+        "found_by": "aarin"
+    },
+    {
+        "type": "lost",
+        "contact_name": "aarin",
+        "contact_phone": "123",
+        "contact_email": "aarin@123",
+        "date_of_loss": "2005-05-14",
+        "description": "red bag",
+        "location": "1",
+        "image": null,
+        "created_at": "2025-07-12T22:22:52+02:00",
+        "status": "pending",
+        "username": "aarin"
+    },
+    {
+        "type": "lost",
+        "passenger_name": "aarin",
+        "passenger_phone": "123",
+        "passenger_email": "aarin@123",
+        "flight_number": "aa123",
+        "date_of_loss": "2025-07-15",
+        "time_of_loss": "14:07",
+        "description": "A patek phillip watch",
+        "category": "Electronics",
+        "estimated_value": "100000",
+        "location": "1",
+        "notes": "",
+        "image": null,
+        "created_at": "2025-07-13T10:38:00+02:00",
+        "status": "pending",
+        "username": "aarin"
+    }
+]
